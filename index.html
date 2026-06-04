@@ -6,10 +6,10 @@
   <style>
     * { box-sizing: border-box; }
     body { font-family: 'Malgun Gothic', sans-serif; background-color: #f4f4f4; margin: 20px; }
-    
+
     /* ---------------- 상단 메뉴바 ---------------- */
-    .toolbar { 
-      margin-bottom: 15px; display: flex; align-items: center; gap: 10px; 
+    .toolbar {
+      margin-bottom: 15px; display: flex; align-items: center; gap: 10px;
       background: #fff; padding: 10px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       flex-wrap: wrap;
     }
@@ -21,22 +21,22 @@
     .btn-add-wall { background-color: #795548; }
     .btn-delete { background-color: #f44336; }
     .btn-save { background-color: #2196F3; margin-left: auto; }
-    
+
     .color-picker-group { display: flex; align-items: center; gap: 5px; font-size: 13px; font-weight: bold; border-left: 1px solid #ccc; padding-left: 10px; margin-left: 5px; }
     input[type="color"] { cursor: pointer; border: 1px solid #ccc; width: 30px; height: 30px; padding: 0; }
-    
+
     .map-size-group { display: flex; align-items: center; gap: 5px; font-size: 13px; font-weight: bold; border-left: 1px solid #ccc; padding-left: 10px; margin-left: 5px;}
     .map-size-group input { width: 50px; padding: 4px; border: 1px solid #ccc; border-radius: 4px; text-align: center; }
 
     /* ---------------- 실험실 맵 캔버스 ---------------- */
-    .lab-map { 
-      width: 1050px; height: 650px; 
-      background-color: #fff; 
-      border: 2px solid #888; position: relative; overflow: hidden; 
+    .lab-map {
+      width: 1050px; height: 650px;
+      background-color: #fff;
+      border: 2px solid #888; position: relative; overflow: hidden;
       box-shadow: 0 4px 8px rgba(0,0,0,0.1);
       /* 드래그 시 버벅거림 방지를 위해 transition 제외 */
     }
-    
+
     /* [신규] 맵 크기 조절 손잡이 */
     .map-resizer {
       position: absolute;
@@ -49,10 +49,10 @@
     .map-resizer:hover { background: linear-gradient(135deg, transparent 50%, #555 50%); }
 
     .draggable-item {
-      position: absolute; cursor: grab; user-select: none; 
+      position: absolute; cursor: grab; user-select: none;
       box-shadow: 2px 2px 5px rgba(0,0,0,0.2); transition: box-shadow 0.2s;
       display: flex; justify-content: center; align-items: center;
-      transform-origin: center center; 
+      transform-origin: center center;
     }
     .draggable-item:active { cursor: grabbing; }
     .draggable-item.selected { outline: 2px solid #ff0000; outline-offset: 0; box-shadow: 0 0 10px rgba(255, 0, 0, 0.5); z-index: 500 !important; }
@@ -61,7 +61,7 @@
     .wall-box { width: 160px; height: 20px; background-color: #555; border: none; min-width: 20px; min-height: 10px; }
     .icon-box { width: 40px; height: 25px; background-color: white; border: 2px solid black; }
     .triangle-up { width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 12px solid black; pointer-events: none;}
-    
+
     .door-box { width: 50px; height: 50px; background: transparent; border: none; box-shadow: none !important; }
     .door-arc {
       position: absolute;
@@ -97,7 +97,7 @@
     }
 
     .editable-text { width: 90%; text-align: center; outline: none; cursor: text; font-size: 13px; word-break: break-word; white-space: pre-wrap; }
-    
+
     .handle { position: absolute; background-color: #2196F3; border: 1px solid white; display: none; z-index: 10; }
     .draggable-item.selected .handle { display: block; }
     .resizer-handle { width: 10px; height: 10px; }
@@ -119,21 +119,21 @@
       width: 90%; max-width: 1100px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); position: relative; max-height: 90vh; overflow-y: auto;
     }
     .close-btn { position: absolute; right: 20px; top: 15px; font-size: 28px; cursor: pointer; font-weight: bold; }
-    
+
     .modal-settings { background: #f9f9f9; padding: 15px; border-radius: 6px; margin-bottom: 15px; border: 1px solid #eee; display: flex; flex-wrap: wrap; gap: 15px; align-items: center; font-size: 14px; font-weight: bold; }
     .modal-settings input[type="text"] { padding: 5px; border: 1px solid #ccc; border-radius: 4px; width: 150px;}
     .modal-settings input[type="range"] { cursor: pointer; }
     .paste-badge { background-color: #e3f2fd; color: #1976d2; padding: 5px 10px; border-radius: 4px; font-size: 12px; border: 1px solid #bbdefb; }
 
     .modal-body { display: flex; gap: 20px; align-items: flex-start; }
-    
+
     .modal-left { flex: 1.5; text-align: center; background: #fff; border: 1px dashed #ccc; min-height: 200px; padding: 10px; position: relative; }
     .label-toolbar { margin-bottom: 10px; text-align: left; }
     .label-toolbar button { padding: 4px 10px; font-size: 12px; cursor: pointer; border: 1px solid #ccc; background: #fff; border-radius: 4px; font-weight: bold;}
-    
+
     #imageWrapper { position: relative; display: inline-block; max-width: 100%; }
     #previewImage { width: 100%; display: block; border-radius: 4px; pointer-events: none; }
-    
+
     .zone-label { position: absolute; background: white; border: 1px solid #333; display: flex; flex-direction: column; width: 45px; box-shadow: 2px 2px 5px rgba(0,0,0,0.4); z-index: 10; }
     .zone-label.selected-label { border: 2px solid #ff0000; z-index: 20;}
     .label-drag-handle { width: 100%; height: 8px; background: #ddd; cursor: grab; border-bottom: 1px solid #ccc; }
@@ -143,7 +143,7 @@
     .item-input-group { display: flex; gap: 5px; margin-bottom: 10px; flex-wrap: wrap;}
     .item-input-group input { padding: 6px; border: 1px solid #ccc; border-radius: 4px; flex: 1; min-width: 60px;}
     .item-input-group button { padding: 6px 12px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
-    
+
     table { width: 100%; border-collapse: collapse; text-align: center; font-size: 13px; }
     th, td { border: 1px solid #ddd; padding: 8px; vertical-align: middle; }
     th { background-color: #eee; }
@@ -177,7 +177,7 @@
     <button class="btn btn-add-door" onclick="addNewItem('door')">🚪 문 표시</button>
     <button class="btn btn-add-wall" onclick="addNewItem('wall')">▮ 벽 추가</button>
     <button class="btn btn-delete" onclick="deleteSelectedItem()">🗑️ 삭제</button>
-    
+
     <div class="color-picker-group">
       <label>배경색:</label>
       <input type="color" id="shapeColor" value="#b3b3b3" oninput="changeSelectedColor()">
@@ -187,10 +187,10 @@
       <label>글씨색:</label>
       <input type="color" id="textColor" value="#000000" oninput="changeSelectedTextColor()">
     </div>
-    
+
     <div class="map-size-group">
       <label>도면 크기:</label>
-      <input type="number" id="mapW" value="1000" onchange="resizeMapFromInput()"> W x 
+      <input type="number" id="mapW" value="1000" onchange="resizeMapFromInput()"> W x
       <input type="number" id="mapH" value="600" onchange="resizeMapFromInput()"> H
     </div>
 
@@ -198,6 +198,9 @@
     <button class="btn btn-add-icon" onclick="searchInventoryItem()">🔍 검색</button>
 
     <button class="btn btn-save" onclick="saveMapData()">💾 전체 데이터 저장</button>
+    <button class="btn btn-add-icon" onclick="exportMapData()">⬇️ 파일 내보내기</button>
+    <button class="btn btn-add" onclick="document.getElementById('importFile').click()">⬆️ 파일 불러오기</button>
+    <input type="file" id="importFile" accept="application/json" style="display:none" onchange="importMapData(event)">
     <button class="btn btn-delete" onclick="clearSavedMapData()">저장 초기화</button>
   </div>
 
@@ -211,7 +214,7 @@
     <div class="modal-content">
       <span class="close-btn" onclick="closeModal()">&times;</span>
       <h3 id="modalTitle" contenteditable="true" oninput="updateModalTitleText()">장비 상세 정보</h3>
-      
+
       <div class="modal-settings">
         <div>
           <label>담당자 : </label>
@@ -281,11 +284,12 @@
     </div>
   </div>
 
+
   <script>
     let itemCount = 0, selectedEl = null, labDatabase = {};
     let autoSaveTimer = null;
     const SNAP_DIST = 8;
-    const STORAGE_KEY = "lab_map_editor_data_v1"; 
+    const STORAGE_KEY = "lab_map_editor_data_v1";
 
 
     /* --------------------------------------------------------
@@ -325,10 +329,10 @@
         // 최소 크기 제한 (너비 300px, 높이 200px)
         const newW = Math.max(300, mapStartW + (e.clientX - mapStartX));
         const newH = Math.max(200, mapStartH + (e.clientY - mapStartY));
-        
+
         mapArea.style.width = newW + 'px';
         mapArea.style.height = newH + 'px';
-        
+
         // 상단 입력창과 실시간 연동
         mapWInput.value = newW;
         mapHInput.value = newH;
@@ -359,15 +363,15 @@
       itemCount++;
       const id = 'item_' + itemCount;
       const newEl = document.createElement('div');
-      
+
       newEl.id = id;
       if(type === 'shape') newEl.className = 'draggable-item shape-box';
       else if(type === 'icon') newEl.className = 'draggable-item icon-box';
       else if(type === 'door') newEl.className = 'draggable-item door-box';
       else if(type === 'wall') newEl.className = 'draggable-item wall-box';
-      
+
       newEl.style.left = '100px'; newEl.style.top = '100px';
-      
+
       labDatabase[id] = { type, manager: "", imageUrl: "", imageSize: "100", inventory: [], zoneLabels: [], rotate: 0, detailTitle: "" };
 
       if (type === 'shape') {
@@ -376,7 +380,7 @@
         newEl.innerHTML = `<span class="editable-text" contenteditable="true" style="color:${currentTextColor};"></span>
                            ${resizeHandlesHTML()}
                            <div class="handle rotate-handle"></div>`;
-      } 
+      }
       else if (type === 'wall') {
         newEl.style.backgroundColor = document.getElementById('shapeColor').value;
         newEl.innerHTML = `${resizeHandlesHTML()}
@@ -452,7 +456,7 @@
           const rect = el.getBoundingClientRect();
           startAngle = Math.atan2(e.clientY - (rect.top + rect.height / 2), e.clientX - (rect.left + rect.width / 2));
         } else isDragging = true;
-        
+
         e.stopPropagation();
       });
 
@@ -461,7 +465,7 @@
         hasMoved = true;
         const dx = e.clientX - startX;
         const dy = e.clientY - startY;
-        
+
         const guideH = document.getElementById('guideH');
         const guideV = document.getElementById('guideV');
         guideH.style.display = 'none'; guideV.style.display = 'none';
@@ -562,7 +566,7 @@
           }
 
           el.style.transform = `rotate(${finalAngle}deg)`;
-          labDatabase[el.id].rotate = finalAngle; 
+          labDatabase[el.id].rotate = finalAngle;
         }
       });
 
@@ -585,19 +589,19 @@
       const defaultTitle = selectedEl.classList.contains('shape-box') ? selectedEl.querySelector('.editable-text').innerText : "서랍장 아이콘";
       const titleText = dbData.detailTitle || defaultTitle;
       document.getElementById('modalTitle').innerText = titleText;
-      
+
       document.getElementById('managerInput').value = dbData.manager || "";
       document.getElementById('imgSizeSlider').value = dbData.imageSize || "100";
-      
+
       if (dbData.imageUrl && dbData.imageUrl.startsWith('data:image')) {
         document.getElementById('imgUrlInput').value = "[클립보드에서 붙여넣은 이미지]";
       } else {
         document.getElementById('imgUrlInput').value = dbData.imageUrl || "";
       }
-      
+
       refreshPreviewImage();
-      renderZoneLabels(); 
-      renderInventoryTable(); 
+      renderZoneLabels();
+      renderInventoryTable();
       document.getElementById('detailModal').style.display = "block";
     }
 
@@ -606,8 +610,8 @@
     function refreshPreviewImage() {
       const imgEl = document.getElementById('previewImage');
       const dbUrl = labDatabase[selectedEl.id].imageUrl;
-      
-      if(dbUrl && dbUrl.trim() !== "") { imgEl.src = dbUrl; imgEl.style.display = "block"; } 
+
+      if(dbUrl && dbUrl.trim() !== "") { imgEl.src = dbUrl; imgEl.style.display = "block"; }
       else { imgEl.style.display = "none"; }
       updateImageSize();
     }
@@ -667,7 +671,7 @@
       if (!selectedEl) return;
       const dbData = labDatabase[selectedEl.id];
       const labelId = 'label_' + Date.now();
-      
+
       dbData.zoneLabels.push({ id: labelId, text: "A1", left: "10%", top: "10%" });
       renderZoneLabels();
       scheduleAutoSave();
@@ -676,9 +680,9 @@
     function renderZoneLabels() {
       const wrapper = document.getElementById('imageWrapper');
       wrapper.querySelectorAll('.zone-label').forEach(e => e.remove());
-      
+
       const labels = labDatabase[selectedEl.id].zoneLabels || [];
-      
+
       labels.forEach(lblData => {
         const el = document.createElement('div');
         el.className = 'zone-label';
@@ -694,7 +698,7 @@
         textDiv.className = 'label-text';
         textDiv.contentEditable = true;
         textDiv.innerText = lblData.text;
-        
+
         textDiv.addEventListener('input', () => { lblData.text = textDiv.innerText; scheduleAutoSave(); });
         el.appendChild(textDiv);
 
@@ -706,7 +710,7 @@
         });
 
         wrapper.appendChild(el);
-        makeLabelDraggable(el, handle, lblData); 
+        makeLabelDraggable(el, handle, lblData);
       });
     }
 
@@ -727,7 +731,7 @@
         const wrapperRect = document.getElementById('imageWrapper').getBoundingClientRect();
         const dx = e.clientX - startX;
         const dy = e.clientY - startY;
-        
+
         const dxPct = (dx / wrapperRect.width) * 100;
         const dyPct = (dy / wrapperRect.height) * 100;
 
@@ -830,16 +834,16 @@
       const category = document.getElementById('itemCategory').value || '-';
       const name = document.getElementById('itemName').value;
       const qty = document.getElementById('itemQty').value || '-';
-      
+
       if(!name) return alert("물품명은 필수 입력입니다.");
 
       labDatabase[selectedEl.id].inventory.push({ area: area, category: category, name: name, qty: qty });
-      
-      document.getElementById('itemArea').value = ''; 
+
+      document.getElementById('itemArea').value = '';
       document.getElementById('itemCategory').value = '';
-      document.getElementById('itemName').value = ''; 
+      document.getElementById('itemName').value = '';
       document.getElementById('itemQty').value = '';
-      
+
       renderInventoryTable();
       scheduleAutoSave();
     }
@@ -864,7 +868,11 @@
 
     function deleteInventoryItem(index) { labDatabase[selectedEl.id].inventory.splice(index, 1); renderInventoryTable(); scheduleAutoSave(); }
 
-    // 6. Google 스프레드시트 저장/불러오기
+    /* --------------------------------------------------------
+       6. 저장 / 불러오기  (GitHub Pages용: localStorage 사용)
+       - Google Apps Script(google.script.run) 대신 브라우저
+         localStorage 에 저장하므로 정적 호스팅에서 동작합니다.
+       -------------------------------------------------------- */
     function buildMapData() {
       const items = document.querySelectorAll('.draggable-item');
       const finalData = {
@@ -910,59 +918,45 @@
       autoSaveTimer = setTimeout(autoSaveMapData, 600);
     }
 
+    // 자동저장 (localStorage)
     function autoSaveMapData() {
-      if (typeof google === 'undefined' || !google.script || !google.script.run) return;
-      const finalData = buildMapData();
-      google.script.run
-        .withSuccessHandler(function(result) {
-          if (!result || !result.success) console.log("자동저장 실패", result);
-        })
-        .withFailureHandler(function(err) {
-          console.log("자동저장 오류", err);
-        })
-        .saveData(finalData);
+      try {
+        const finalData = buildMapData();
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(finalData));
+      } catch (err) {
+        // 용량 초과(이미지 base64가 많을 때) 등 예외 처리
+        console.log("자동저장 실패", err);
+      }
     }
 
+    // 수동 저장 버튼 (localStorage)
     function saveMapData() {
-      const finalData = buildMapData();
-
-      if (typeof google === 'undefined' || !google.script || !google.script.run) {
-        showSearchModal("Apps Script 웹앱에서 실행해야 저장됩니다.");
-        return;
+      try {
+        const finalData = buildMapData();
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(finalData));
+        showSearchModal("저장되었습니다. (이 브라우저에 보관됩니다)");
+      } catch (err) {
+        if (err && err.name === 'QuotaExceededError') {
+          showSearchModal("저장 공간이 가득 찼습니다.\n등록된 이미지가 너무 많을 수 있습니다.\n'파일 내보내기'로 백업해 주세요.");
+        } else {
+          showSearchModal("저장 실패: " + (err && err.message ? err.message : err));
+        }
       }
-
-      google.script.run
-        .withSuccessHandler(function(result) {
-          if (result && result.success) {
-            showSearchModal("저장되었습니다.");
-          } else {
-            showSearchModal("저장 실패");
-          }
-        })
-        .withFailureHandler(function(err) {
-          showSearchModal("저장 실패");
-        })
-        .saveData(finalData);
     }
 
+    // 페이지 로드시 불러오기 (localStorage)
     function loadMapData() {
-      if (typeof google === 'undefined' || !google.script || !google.script.run) {
-        console.log("Apps Script 웹앱이 아니므로 자동 불러오기를 건너뜁니다.");
-        return;
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) {
+          console.log("저장된 데이터가 없습니다.");
+          return;
+        }
+        const data = JSON.parse(raw);
+        restoreMapData(data);
+      } catch (err) {
+        console.log("불러오기 중 오류가 발생했습니다:", err);
       }
-
-      google.script.run
-        .withSuccessHandler(function(result) {
-          if (!result || !result.success) {
-            console.log((result && result.message) || "저장된 데이터가 없습니다.");
-            return;
-          }
-          restoreMapData(result.data);
-        })
-        .withFailureHandler(function(err) {
-          alert("불러오기 중 오류가 발생했습니다: " + err.message);
-        })
-        .loadData();
     }
 
     function restoreMapData(data) {
@@ -1029,30 +1023,56 @@
       });
     }
 
+    // 저장 초기화 (localStorage)
     function clearSavedMapData() {
       if (!confirm("저장된 도면 데이터를 삭제하시겠습니까? 현재 화면의 도형도 모두 지워집니다.")) return;
 
-      if (typeof google === 'undefined' || !google.script || !google.script.run) {
-        alert("Apps Script 웹앱에서 실행해야 구글 스프레드시트 데이터를 초기화할 수 있습니다.");
-        return;
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+        document.querySelectorAll('.draggable-item').forEach(el => el.remove());
+        labDatabase = {};
+        selectedEl = null;
+        itemCount = 0;
+        alert("저장 데이터가 초기화되었습니다.");
+      } catch (err) {
+        alert("초기화 중 오류가 발생했습니다: " + (err && err.message ? err.message : err));
       }
+    }
 
-      google.script.run
-        .withSuccessHandler(function(result) {
-          if (result && result.success) {
-            document.querySelectorAll('.draggable-item').forEach(el => el.remove());
-            labDatabase = {};
-            selectedEl = null;
-            itemCount = 0;
-            alert("저장 데이터가 초기화되었습니다.");
-          } else {
-            alert("초기화 실패: " + ((result && result.message) || "알 수 없는 오류"));
-          }
-        })
-        .withFailureHandler(function(err) {
-          alert("초기화 중 오류가 발생했습니다: " + err.message);
-        })
-        .clearData();
+    /* --------------------------------------------------------
+       [신규] 파일로 백업/복원 (다른 PC·브라우저로 옮길 때)
+       - localStorage 는 브라우저마다 따로 저장되므로,
+         JSON 파일로 내보내고 불러오는 기능을 추가합니다.
+       -------------------------------------------------------- */
+    function exportMapData() {
+      const finalData = buildMapData();
+      const blob = new Blob([JSON.stringify(finalData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'lab_map_data.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function importMapData(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = JSON.parse(e.target.result);
+          restoreMapData(data);
+          autoSaveMapData();
+          showSearchModal("파일을 불러왔습니다.");
+        } catch (err) {
+          showSearchModal("파일을 읽을 수 없습니다: " + (err && err.message ? err.message : err));
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = ''; // 같은 파일 다시 선택 가능하도록 초기화
     }
 
     function updateModalTitleText() {
