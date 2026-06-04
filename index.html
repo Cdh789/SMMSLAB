@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>실험실 통합 에디터 - Firebase Firestore 버전</title>
+  <title>실험실 통합 에디터 - Firebase Hosting 버전</title>
   <style>
     * { box-sizing: border-box; }
     body { font-family: 'Malgun Gothic', sans-serif; background-color: #f4f4f4; margin: 20px; }
@@ -194,14 +194,11 @@
       <input type="number" id="mapH" value="600" onchange="resizeMapFromInput()"> H
     </div>
 
-    <input type="text" id="searchInput" class="search-input" placeholder="물품명/구역/분류/수량 검색" onkeydown="handleSearchKey(event)">
+    <input type="text" id="searchInput" class="search-input" placeholder="물품명/구역/분류/수량/단위 검색" onkeydown="handleSearchKey(event)">
     <button class="btn btn-add-icon" onclick="searchInventoryItem()">🔍 검색</button>
 
     <button class="btn btn-save" onclick="saveMapData()">💾 클라우드 저장</button>
     <button class="btn btn-delete" onclick="clearSavedMapData()">저장 초기화</button>
-  </div>
-  <div style="margin: -5px 0 15px 0; padding: 10px; background:#e8f5e9; border:1px solid #a5d6a7; border-radius:6px; font-size:13px; color:#1b5e20;">
-    Firebase Firestore 연동 버전입니다. 저장된 데이터는 클라우드에 저장되므로 같은 주소로 접속하면 다른 PC/브라우저에서도 불러올 수 있습니다.
   </div>
 
   <div class="lab-map" id="mapArea" onclick="deselectAll(event)">
@@ -249,12 +246,13 @@
             <input type="text" id="itemCategory" placeholder="분류(공구)">
             <input type="text" id="itemName" placeholder="물품명">
             <input type="text" id="itemQty" placeholder="수량">
+            <input type="text" id="itemUnit" placeholder="단위(개/병/kg)">
             <button onclick="addInventoryItem()">추가</button>
           </div>
           <div class="edit-hint">표 안의 내용을 클릭하면 바로 수정됩니다. 수정 내용은 자동저장됩니다.</div>
           <table>
             <thead>
-              <tr><th>구역</th><th>분류</th><th>물품명</th><th>수량</th><th>관리</th></tr>
+              <tr><th>구역</th><th>분류</th><th>물품명</th><th>수량</th><th>단위</th><th>관리</th></tr>
             </thead>
             <tbody id="tableBody"></tbody>
           </table>
@@ -827,7 +825,7 @@
       const items = labDatabase[selectedEl.id].inventory;
 
       if (items.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5">등록된 물품이 없습니다.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6">등록된 물품이 없습니다.</td></tr>';
         return;
       }
 
@@ -871,6 +869,7 @@
         html += `<td class="editable-cell" contenteditable="true" oninput="updateInventoryField(${i}, 'category', this.innerText)">${escapeHtml(item.category)}</td>`;
         html += `<td class="editable-cell" contenteditable="true" oninput="updateInventoryField(${i}, 'name', this.innerText)">${escapeHtml(item.name)}</td>`;
         html += `<td class="editable-cell" contenteditable="true" oninput="updateInventoryField(${i}, 'qty', this.innerText)">${escapeHtml(item.qty)}</td>`;
+        html += `<td class="editable-cell" contenteditable="true" oninput="updateInventoryField(${i}, 'unit', this.innerText)">${escapeHtml(item.unit || '-')}</td>`;
         html += `<td><button class="del-item-btn" onclick="deleteInventoryItem(${i})">삭제</button></td>`;
         html += `</tr>`;
       }
@@ -882,15 +881,17 @@
       const category = document.getElementById('itemCategory').value || '-';
       const name = document.getElementById('itemName').value;
       const qty = document.getElementById('itemQty').value || '-';
+      const unit = document.getElementById('itemUnit').value || '-';
       
       if(!name) return alert("물품명은 필수 입력입니다.");
 
-      labDatabase[selectedEl.id].inventory.push({ area: area, category: category, name: name, qty: qty });
+      labDatabase[selectedEl.id].inventory.push({ area: area, category: category, name: name, qty: qty, unit: unit });
       
       document.getElementById('itemArea').value = ''; 
       document.getElementById('itemCategory').value = '';
       document.getElementById('itemName').value = ''; 
       document.getElementById('itemQty').value = '';
+      document.getElementById('itemUnit').value = '';
       
       renderInventoryTable();
       scheduleAutoSave();
@@ -989,14 +990,10 @@
         const finalData = buildMapData();
         const firebaseDB = await waitForFirebaseDB();
         await firebaseDB.save(finalData);
-        showSearchModal("Firebase Firestore에 저장되었습니다.
-
-다른 PC/브라우저에서도 같은 GitHub Pages 주소로 접속하면 불러올 수 있습니다.");
+        showSearchModal("Firebase Firestore에 저장되었습니다.\n\n다른 PC/브라우저에서도 같은 Firebase Hosting 주소로 접속하면 불러올 수 있습니다.");
       } catch (err) {
         console.log(err);
-        showSearchModal("저장 실패: Firebase 설정 또는 Firestore 규칙을 확인해주세요.
-
-오류: " + (err.message || err));
+        showSearchModal("저장 실패: Firebase 설정 또는 Firestore 규칙을 확인해주세요.\n\n오류: " + (err.message || err));
       }
     }
 
@@ -1014,9 +1011,7 @@
         console.log("Firestore 데이터 불러오기 완료:", FIRESTORE_DOC_PATH);
       } catch (err) {
         console.log(err);
-        showSearchModal("불러오기 실패: Firebase 설정 또는 Firestore 규칙을 확인해주세요.
-
-오류: " + (err.message || err));
+        showSearchModal("불러오기 실패: Firebase 설정 또는 Firestore 규칙을 확인해주세요.\n\n오류: " + (err.message || err));
       }
     }
 
@@ -1056,7 +1051,7 @@
           manager: item.manager || "",
           imageUrl: item.imageUrl || "",
           imageSize: item.imageSize || "100",
-          inventory: item.inventory || [],
+          inventory: (item.inventory || []).map(inv => ({ unit: '-', ...inv })),
           zoneLabels: item.zoneLabels || [],
           rotate: item.rotate || 0,
           detailTitle: item.detailTitle || ""
@@ -1098,9 +1093,7 @@
         showSearchModal("Firestore 저장 데이터가 초기화되었습니다.");
       } catch (err) {
         console.log(err);
-        showSearchModal("초기화 중 오류가 발생했습니다.
-
-오류: " + (err.message || err));
+        showSearchModal("초기화 중 오류가 발생했습니다.\n\n오류: " + (err.message || err));
       }
     }
 
@@ -1189,12 +1182,14 @@
           const category = String(item.category || '').toLowerCase();
           const name = String(item.name || '').toLowerCase();
           const qty = String(item.qty || '').toLowerCase();
+          const unit = String(item.unit || '').toLowerCase();
 
           if (
             area.includes(keyword) ||
             category.includes(keyword) ||
             name.includes(keyword) ||
-            qty.includes(keyword)
+            qty.includes(keyword) ||
+            unit.includes(keyword)
           ) {
             results.push({ id, item });
           }
