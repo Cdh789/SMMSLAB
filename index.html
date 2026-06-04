@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>실험실 통합 에디터 (맵 드래그 크기 조절 추가)</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Malgun Gothic', sans-serif; background-color: #f4f4f4; margin: 20px; }
+    
+    /* ---------------- 상단 메뉴바 ---------------- */
+    .toolbar { 
+      margin-bottom: 15px; display: flex; align-items: center; gap: 10px; 
+      background: #fff; padding: 10px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      flex-wrap: wrap;
+    }
+    .btn { padding: 6px 12px; font-size: 13px; font-weight: bold; cursor: pointer; color: white; border: none; border-radius: 4px; transition: 0.2s; }
+    .btn:hover { opacity: 0.8; }
+    .btn-add { background-color: #4CAF50; }
+    .btn-add-icon { background-color: #607d8b; }
+    .btn-add-door { background-color: #9c27b0; }
+    .btn-add-wall { background-color: #795548; }
+    .btn-delete { background-color: #f44336; }
+    .btn-save { background-color: #2196F3; margin-left: auto; }
+    
+    .color-picker-group { display: flex; align-items: center; gap: 5px; font-size: 13px; font-weight: bold; border-left: 1px solid #ccc; padding-left: 10px; margin-left: 5px; }
+    input[type="color"] { cursor: pointer; border: 1px solid #ccc; width: 30px; height: 30px; padding: 0; }
+    
+    .map-size-group { display: flex; align-items: center; gap: 5px; font-size: 13px; font-weight: bold; border-left: 1px solid #ccc; padding-left: 10px; margin-left: 5px;}
+    .map-size-group input { width: 50px; padding: 4px; border: 1px solid #ccc; border-radius: 4px; text-align: center; }
+
+    /* ---------------- 실험실 맵 캔버스 ---------------- */
+    .lab-map { 
+      width: 1050px; height: 650px; 
+      background-color: #fff; 
+      border: 2px solid #888; position: relative; overflow: hidden; 
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      /* 드래그 시 버벅거림 방지를 위해 transition 제외 */
+    }
+    
+    /* [신규] 맵 크기 조절 손잡이 */
+    .map-resizer {
+      position: absolute;
+      right: 0; bottom: 0;
+      width: 20px; height: 20px;
+      cursor: nwse-resize;
+      background: linear-gradient(135deg, transparent 50%, #888 50%);
+      z-index: 100;
+    }
+    .map-resizer:hover { background: linear-gradient(135deg, transparent 50%, #555 50%); }
+
+    .draggable-item {
+      position: absolute; cursor: grab; user-select: none; 
+      box-shadow: 2px 2px 5px rgba(0,0,0,0.2); transition: box-shadow 0.2s;
+      display: flex; justify-content: center; align-items: center;
+      transform-origin: center center; 
+    }
+    .draggable-item:active { cursor: grabbing; }
+    .draggable-item.selected { outline: 2px solid #ff0000; outline-offset: 0; box-shadow: 0 0 10px rgba(255, 0, 0, 0.5); z-index: 500 !important; }
+
+    .shape-box { width: 120px; height: 60px; border: 1px solid #333; min-width: 50px; min-height: 30px; }
+    .wall-box { width: 160px; height: 20px; background-color: #555; border: none; min-width: 20px; min-height: 10px; }
+    .icon-box { width: 40px; height: 25px; background-color: white; border: 2px solid black; }
+    .triangle-up { width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 12px solid black; pointer-events: none;}
+    
+    .door-box { width: 50px; height: 50px; background: transparent; border: none; box-shadow: none !important; }
+    .door-arc {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      border-top: 2px solid #333;
+      border-right: 2px solid #333;
+      border-bottom: none;
+      border-left: none;
+      border-top-right-radius: 100%;
+      box-sizing: border-box;
+      pointer-events: none;
+    }
+    .door-frame {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 2px;
+      height: 100%;
+      background-color: #333;
+      pointer-events: none;
+    }
+    .door-bottom {
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      width: 100%;
+      height: 2px;
+      background-color: #333;
+      pointer-events: none;
+    }
+
+    .editable-text { width: 90%; text-align: center; outline: none; cursor: text; font-size: 13px; word-break: break-word; white-space: pre-wrap; }
+    
+    .handle { position: absolute; background-color: #2196F3; border: 1px solid white; display: none; z-index: 10; }
+    .draggable-item.selected .handle { display: block; }
+    .resizer-handle { width: 10px; height: 10px; }
+    .resizer-handle.br { right: -5px; bottom: -5px; cursor: nwse-resize; }
+    .resizer-handle.bl { left: -5px; bottom: -5px; cursor: nesw-resize; }
+    .resizer-handle.tr { right: -5px; top: -5px; cursor: nesw-resize; }
+    .resizer-handle.tl { left: -5px; top: -5px; cursor: nwse-resize; }
+    .rotate-handle { width: 12px; height: 12px; border-radius: 50%; top: -30px; left: 50%; transform: translateX(-50%); cursor: alias; background-color: #4CAF50; }
+    .rotate-handle::after { content: ''; position: absolute; width: 2px; height: 18px; background-color: #4CAF50; top: 12px; left: 4px; }
+
+    .smart-guide { position: absolute; display: none; z-index: 999; pointer-events: none; }
+    .guide-h { width: 100%; height: 0; border-top: 1px dashed #e91e63; left: 0; }
+    .guide-v { height: 100%; width: 0; border-left: 1px dashed #e91e63; top: 0; }
+
+    /* ---------------- 상세 모달창 ---------------- */
+    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); }
+    .modal-content {
+      background-color: #fff; margin: 2% auto; padding: 20px; border-radius: 8px;
+      width: 90%; max-width: 1100px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); position: relative; max-height: 90vh; overflow-y: auto;
+    }
+    .close-btn { position: absolute; right: 20px; top: 15px; font-size: 28px; cursor: pointer; font-weight: bold; }
+    
+    .modal-settings { background: #f9f9f9; padding: 15px; border-radius: 6px; margin-bottom: 15px; border: 1px solid #eee; display: flex; flex-wrap: wrap; gap: 15px; align-items: center; font-size: 14px; font-weight: bold; }
+    .modal-settings input[type="text"] { padding: 5px; border: 1px solid #ccc; border-radius: 4px; width: 150px;}
+    .modal-settings input[type="range"] { cursor: pointer; }
+    .paste-badge { background-color: #e3f2fd; color: #1976d2; padding: 5px 10px; border-radius: 4px; font-size: 12px; border: 1px solid #bbdefb; }
+
+    .modal-body { display: flex; gap: 20px; align-items: flex-start; }
+    
+    .modal-left { flex: 1.5; text-align: center; background: #fff; border: 1px dashed #ccc; min-height: 200px; padding: 10px; position: relative; }
+    .label-toolbar { margin-bottom: 10px; text-align: left; }
+    .label-toolbar button { padding: 4px 10px; font-size: 12px; cursor: pointer; border: 1px solid #ccc; background: #fff; border-radius: 4px; font-weight: bold;}
+    
+    #imageWrapper { position: relative; display: inline-block; max-width: 100%; }
+    #previewImage { width: 100%; display: block; border-radius: 4px; pointer-events: none; }
+    
+    .zone-label { position: absolute; background: white; border: 1px solid #333; display: flex; flex-direction: column; width: 45px; box-shadow: 2px 2px 5px rgba(0,0,0,0.4); z-index: 10; }
+    .zone-label.selected-label { border: 2px solid #ff0000; z-index: 20;}
+    .label-drag-handle { width: 100%; height: 8px; background: #ddd; cursor: grab; border-bottom: 1px solid #ccc; }
+    .label-text { width: 100%; text-align: center; outline: none; padding: 2px 0; font-weight: bold; font-size: 12px; }
+
+    .modal-right { flex: 1.2; }
+    .item-input-group { display: flex; gap: 5px; margin-bottom: 10px; flex-wrap: wrap;}
+    .item-input-group input { padding: 6px; border: 1px solid #ccc; border-radius: 4px; flex: 1; min-width: 60px;}
+    .item-input-group button { padding: 6px 12px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    
+    table { width: 100%; border-collapse: collapse; text-align: center; font-size: 13px; }
+    th, td { border: 1px solid #ddd; padding: 8px; vertical-align: middle; }
+    th { background-color: #eee; }
+    .del-item-btn { background-color: #f44336; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+    .editable-cell { background: #fff; cursor: text; min-width: 35px; }
+    .editable-cell:focus { outline: 2px solid #4CAF50; outline-offset: -2px; background: #f6fff6; }
+    .edit-hint { font-size: 12px; color: #666; margin: 6px 0; text-align: left; }
+
+
+    /* ---------------- 물품 검색 강조 표시 ---------------- */
+    .search-input {
+      padding: 6px;
+      width: 220px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+
+    .search-highlight {
+      outline: 4px solid #ff9800 !important;
+      box-shadow: 0 0 22px rgba(255, 152, 0, 0.95) !important;
+      z-index: 9999 !important;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="toolbar">
+    <button class="btn btn-add" onclick="addNewItem('shape')">+ 새 장비</button>
+    <button class="btn btn-add-icon" onclick="addNewItem('icon')">▲ 아이콘</button>
+    <button class="btn btn-add-door" onclick="addNewItem('door')">🚪 문 표시</button>
+    <button class="btn btn-add-wall" onclick="addNewItem('wall')">▮ 벽 추가</button>
+    <button class="btn btn-delete" onclick="deleteSelectedItem()">🗑️ 삭제</button>
+    
+    <div class="color-picker-group">
+      <label>배경색:</label>
+      <input type="color" id="shapeColor" value="#b3b3b3" oninput="changeSelectedColor()">
+    </div>
+
+    <div class="color-picker-group">
+      <label>글씨색:</label>
+      <input type="color" id="textColor" value="#000000" oninput="changeSelectedTextColor()">
+    </div>
+    
+    <div class="map-size-group">
+      <label>도면 크기:</label>
+      <input type="number" id="mapW" value="1000" onchange="resizeMapFromInput()"> W x 
+      <input type="number" id="mapH" value="600" onchange="resizeMapFromInput()"> H
+    </div>
+
+    <input type="text" id="searchInput" class="search-input" placeholder="물품명/구역/분류/수량 검색" onkeydown="handleSearchKey(event)">
+    <button class="btn btn-add-icon" onclick="searchInventoryItem()">🔍 검색</button>
+
+    <button class="btn btn-save" onclick="saveMapData()">💾 전체 데이터 저장</button>
+    <button class="btn btn-delete" onclick="clearSavedMapData()">저장 초기화</button>
+  </div>
+
+  <div class="lab-map" id="mapArea" onclick="deselectAll(event)">
+    <div id="guideH" class="smart-guide guide-h"></div>
+    <div id="guideV" class="smart-guide guide-v"></div>
+    <div id="mapResizer" class="map-resizer" title="드래그하여 맵 크기 조절"></div>
+  </div>
+
+  <div id="detailModal" class="modal">
+    <div class="modal-content">
+      <span class="close-btn" onclick="closeModal()">&times;</span>
+      <h3 id="modalTitle" contenteditable="true" oninput="updateModalTitleText()">장비 상세 정보</h3>
+      
+      <div class="modal-settings">
+        <div>
+          <label>담당자 : </label>
+          <input type="text" id="managerInput" placeholder="이름 입력" onchange="updateDetailData()">
+        </div>
+        <div>
+          <label>사진 주소 : </label>
+          <input type="text" id="imgUrlInput" placeholder="URL 입력 또는 Ctrl+V" style="width:200px;" oninput="updatePreviewFromUrl()">
+        </div>
+        <div class="paste-badge">💡 팁: 이 창에서 이미지 복사 후 <b>Ctrl + V</b>를 누르면 바로 등록됩니다.</div>
+        <div>
+          <label>사진 크기 조절 : </label>
+          <input type="range" id="imgSizeSlider" min="20" max="100" value="100" oninput="updateImageSize()">
+          <span id="imgSizeLabel">100%</span>
+        </div>
+      </div>
+
+      <div class="modal-body">
+        <div class="modal-left">
+          <div class="label-toolbar">
+            <button onclick="addZoneLabel()">+ 구역 라벨(A1..) 추가</button>
+            <button onclick="deleteZoneLabel()" style="color: red;">- 선택 라벨 삭제</button>
+          </div>
+          <div id="imageWrapper">
+            <img id="previewImage" src="" alt="사진을 등록해주세요." style="display:none;">
+          </div>
+        </div>
+
+        <div class="modal-right">
+          <div class="item-input-group">
+            <input type="text" id="itemArea" placeholder="구역(A1)">
+            <input type="text" id="itemCategory" placeholder="분류(공구)">
+            <input type="text" id="itemName" placeholder="물품명">
+            <input type="text" id="itemQty" placeholder="수량">
+            <button onclick="addInventoryItem()">추가</button>
+          </div>
+          <div class="edit-hint">표 안의 내용을 클릭하면 바로 수정됩니다. 수정 내용은 자동저장됩니다.</div>
+          <table>
+            <thead>
+              <tr><th>구역</th><th>분류</th><th>물품명</th><th>수량</th><th>관리</th></tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- 알림 / 검색 결과 커스텀 모달 -->
+  <div id="searchResultModal" class="modal">
+    <div class="modal-content" style="max-width:420px;">
+      <span class="close-btn" onclick="closeSearchModal()">&times;</span>
+
+      <h3 style="margin-top:0;">알림</h3>
+
+      <div id="searchResultContent" style="
+        line-height:1.8;
+        font-size:14px;
+        white-space:pre-line;
+        margin-top:15px;
+      "></div>
+
+      <div style="text-align:right; margin-top:20px;">
+        <button class="btn btn-save" onclick="closeSearchModal()">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let itemCount = 0, selectedEl = null, labDatabase = {};
+    let autoSaveTimer = null;
+    const SNAP_DIST = 8;
+    const STORAGE_KEY = "lab_map_editor_data_v1"; 
+
+
+    /* --------------------------------------------------------
+       알림 / 검색 결과 커스텀 모달
+    -------------------------------------------------------- */
+    function showSearchModal(message) {
+      document.getElementById('searchResultContent').innerText = message;
+      document.getElementById('searchResultModal').style.display = 'block';
+    }
+
+    function closeSearchModal() {
+      document.getElementById('searchResultModal').style.display = 'none';
+    }
+
+
+    /* --------------------------------------------------------
+       [신규] 맵 캔버스 드래그 크기 조절 기능
+    -------------------------------------------------------- */
+    const mapArea = document.getElementById('mapArea');
+    const mapResizer = document.getElementById('mapResizer');
+    const mapWInput = document.getElementById('mapW');
+    const mapHInput = document.getElementById('mapH');
+    let isMapResizing = false;
+    let mapStartX, mapStartY, mapStartW, mapStartH;
+
+    mapResizer.addEventListener('mousedown', function(e) {
+      isMapResizing = true;
+      mapStartX = e.clientX;
+      mapStartY = e.clientY;
+      mapStartW = mapArea.clientWidth;
+      mapStartH = mapArea.clientHeight;
+      e.stopPropagation(); // 맵 클릭 해제 이벤트 방지
+    });
+
+    document.addEventListener('mousemove', function(e) {
+      if (isMapResizing) {
+        // 최소 크기 제한 (너비 300px, 높이 200px)
+        const newW = Math.max(300, mapStartW + (e.clientX - mapStartX));
+        const newH = Math.max(200, mapStartH + (e.clientY - mapStartY));
+        
+        mapArea.style.width = newW + 'px';
+        mapArea.style.height = newH + 'px';
+        
+        // 상단 입력창과 실시간 연동
+        mapWInput.value = newW;
+        mapHInput.value = newH;
+      }
+    });
+
+    document.addEventListener('mouseup', function(e) {
+      if (isMapResizing) scheduleAutoSave();
+      isMapResizing = false;
+    });
+
+    // 상단 텍스트박스로 맵 크기 변경 시
+    function resizeMapFromInput() {
+      mapArea.style.width = mapWInput.value + 'px';
+      mapArea.style.height = mapHInput.value + 'px';
+      scheduleAutoSave();
+    }
+
+    function resizeHandlesHTML() {
+      return `<div class="handle resizer-handle tl" data-resize="tl"></div>
+              <div class="handle resizer-handle tr" data-resize="tr"></div>
+              <div class="handle resizer-handle bl" data-resize="bl"></div>
+              <div class="handle resizer-handle br" data-resize="br"></div>`;
+    }
+
+    // 1. 새 장비/아이콘/문 추가
+    function addNewItem(type) {
+      itemCount++;
+      const id = 'item_' + itemCount;
+      const newEl = document.createElement('div');
+      
+      newEl.id = id;
+      if(type === 'shape') newEl.className = 'draggable-item shape-box';
+      else if(type === 'icon') newEl.className = 'draggable-item icon-box';
+      else if(type === 'door') newEl.className = 'draggable-item door-box';
+      else if(type === 'wall') newEl.className = 'draggable-item wall-box';
+      
+      newEl.style.left = '100px'; newEl.style.top = '100px';
+      
+      labDatabase[id] = { type, manager: "", imageUrl: "", imageSize: "100", inventory: [], zoneLabels: [], rotate: 0, detailTitle: "" };
+
+      if (type === 'shape') {
+        newEl.style.backgroundColor = document.getElementById('shapeColor').value;
+        const currentTextColor = document.getElementById('textColor').value;
+        newEl.innerHTML = `<span class="editable-text" contenteditable="true" style="color:${currentTextColor};"></span>
+                           ${resizeHandlesHTML()}
+                           <div class="handle rotate-handle"></div>`;
+      } 
+      else if (type === 'wall') {
+        newEl.style.backgroundColor = document.getElementById('shapeColor').value;
+        newEl.innerHTML = `${resizeHandlesHTML()}
+                           <div class="handle rotate-handle"></div>`;
+      }
+      else if (type === 'icon') {
+        newEl.innerHTML = `<div class="triangle-up"></div><div class="handle rotate-handle"></div>`;
+      }
+      else if (type === 'door') {
+        newEl.innerHTML = `<div class="door-arc"></div><div class="door-frame"></div><div class="door-bottom"></div>
+                           ${resizeHandlesHTML()}<div class="handle rotate-handle"></div>`;
+      }
+
+      mapArea.appendChild(newEl);
+      makeTransformable(newEl);
+      selectItem(newEl);
+      scheduleAutoSave();
+    }
+
+    function selectItem(el) {
+      if (selectedEl) selectedEl.classList.remove('selected');
+      selectedEl = el;
+      selectedEl.classList.add('selected');
+      if(el.classList.contains('shape-box') || el.classList.contains('wall-box')) {
+        document.getElementById('shapeColor').value = rgbToHex(window.getComputedStyle(el).backgroundColor);
+        const textEl = el.querySelector('.editable-text');
+        if (textEl) document.getElementById('textColor').value = rgbToHex(window.getComputedStyle(textEl).color);
+      }
+    }
+
+    function deselectAll(e) { if (e.target.id === 'mapArea' && selectedEl) { selectedEl.classList.remove('selected'); selectedEl = null; } }
+    function changeSelectedColor() {
+      if (selectedEl && (selectedEl.classList.contains('shape-box') || selectedEl.classList.contains('wall-box'))) {
+        selectedEl.style.backgroundColor = document.getElementById('shapeColor').value;
+        scheduleAutoSave();
+      }
+    }
+    function changeSelectedTextColor() {
+      if (selectedEl && selectedEl.classList.contains('shape-box')) {
+        const textEl = selectedEl.querySelector('.editable-text');
+        if (textEl) { textEl.style.color = document.getElementById('textColor').value; scheduleAutoSave(); }
+      }
+    }
+    function deleteSelectedItem() { if (selectedEl && confirm("삭제하시겠습니까?")) { delete labDatabase[selectedEl.id]; selectedEl.remove(); selectedEl = null; scheduleAutoSave(); } }
+
+    /* --------------------------------------------------------
+       영역 제한(Boundary Clamp) 및 스냅 로직
+    -------------------------------------------------------- */
+    function makeTransformable(el) {
+      attachTextAutoSave(el);
+      const rotator = el.querySelector('.rotate-handle');
+      let resizeDir = null;
+      let isDragging = false, isResizing = false, isRotating = false;
+      let startX, startY, initialLeft, initialTop, initialWidth, initialHeight, initialRotate;
+      let startAngle, hasMoved = false;
+
+      el.addEventListener('mousedown', function(e) {
+        selectItem(el);
+        hasMoved = false;
+        startX = e.clientX; startY = e.clientY;
+        initialLeft = parseInt(el.style.left) || 0;
+        initialTop = parseInt(el.style.top) || 0;
+        initialWidth = el.offsetWidth;
+        initialHeight = el.offsetHeight;
+        initialRotate = labDatabase[el.id].rotate || 0;
+
+        if (e.target.classList.contains('resizer-handle')) {
+          isResizing = true;
+          resizeDir = e.target.dataset.resize || 'br';
+        }
+        else if (e.target === rotator) {
+          isRotating = true;
+          const rect = el.getBoundingClientRect();
+          startAngle = Math.atan2(e.clientY - (rect.top + rect.height / 2), e.clientX - (rect.left + rect.width / 2));
+        } else isDragging = true;
+        
+        e.stopPropagation();
+      });
+
+      document.addEventListener('mousemove', function(e) {
+        if (!isDragging && !isResizing && !isRotating) return;
+        hasMoved = true;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        
+        const guideH = document.getElementById('guideH');
+        const guideV = document.getElementById('guideV');
+        guideH.style.display = 'none'; guideV.style.display = 'none';
+
+        const mapW = mapArea.clientWidth;
+        const mapH = mapArea.clientHeight;
+        const others = Array.from(document.querySelectorAll('.draggable-item')).filter(item => item !== el);
+
+        if (isDragging) {
+          let newLeft = initialLeft + dx;
+          let newTop = initialTop + dy;
+          let elRight = newLeft + initialWidth;
+          let elBottom = newTop + initialHeight;
+
+          // 1. 자석 효과 적용
+          others.forEach(other => {
+            const oLeft = parseInt(other.style.left) || 0, oTop = parseInt(other.style.top) || 0;
+            const oRight = oLeft + other.offsetWidth, oBottom = oTop + other.offsetHeight;
+
+            if (Math.abs(newLeft - oLeft) < SNAP_DIST) { newLeft = oLeft; guideV.style.left = oLeft + 'px'; guideV.style.display = 'block'; }
+            else if (Math.abs(newLeft - oRight) < SNAP_DIST) { newLeft = oRight; guideV.style.left = oRight + 'px'; guideV.style.display = 'block'; }
+            else if (Math.abs(elRight - oLeft) < SNAP_DIST) { newLeft = oLeft - initialWidth; guideV.style.left = oLeft + 'px'; guideV.style.display = 'block'; }
+            else if (Math.abs(elRight - oRight) < SNAP_DIST) { newLeft = oRight - initialWidth; guideV.style.left = oRight + 'px'; guideV.style.display = 'block'; }
+
+            if (Math.abs(newTop - oTop) < SNAP_DIST) { newTop = oTop; guideH.style.top = oTop + 'px'; guideH.style.display = 'block'; }
+            else if (Math.abs(newTop - oBottom) < SNAP_DIST) { newTop = oBottom; guideH.style.top = oBottom + 'px'; guideH.style.display = 'block'; }
+            else if (Math.abs(elBottom - oTop) < SNAP_DIST) { newTop = oTop - initialHeight; guideH.style.top = oTop + 'px'; guideH.style.display = 'block'; }
+            else if (Math.abs(elBottom - oBottom) < SNAP_DIST) { newTop = oBottom - initialHeight; guideH.style.top = oBottom + 'px'; guideH.style.display = 'block'; }
+          });
+
+          // 2. 맵 영역 밖으로 나가지 않도록 강제 제한
+          newLeft = Math.max(0, Math.min(newLeft, mapW - initialWidth));
+          newTop = Math.max(0, Math.min(newTop, mapH - initialHeight));
+
+          el.style.left = newLeft + 'px';
+          el.style.top = newTop + 'px';
+
+        } else if (isResizing) {
+          let newLeft = initialLeft;
+          let newTop = initialTop;
+          let newWidth = initialWidth;
+          let newHeight = initialHeight;
+
+          if (resizeDir.includes('r')) newWidth = initialWidth + dx;
+          if (resizeDir.includes('l')) { newWidth = initialWidth - dx; newLeft = initialLeft + dx; }
+          if (resizeDir.includes('b')) newHeight = initialHeight + dy;
+          if (resizeDir.includes('t')) { newHeight = initialHeight - dy; newTop = initialTop + dy; }
+
+          const minW = 10;
+          const minH = 10;
+
+          if (newWidth < minW) {
+            if (resizeDir.includes('l')) newLeft = initialLeft + initialWidth - minW;
+            newWidth = minW;
+          }
+          if (newHeight < minH) {
+            if (resizeDir.includes('t')) newTop = initialTop + initialHeight - minH;
+            newHeight = minH;
+          }
+
+          if (newLeft < 0) { newWidth += newLeft; newLeft = 0; }
+          if (newTop < 0) { newHeight += newTop; newTop = 0; }
+          if (newLeft + newWidth > mapW) newWidth = mapW - newLeft;
+          if (newTop + newHeight > mapH) newHeight = mapH - newTop;
+
+          others.forEach(other => {
+            const oWidth = other.offsetWidth, oHeight = other.offsetHeight;
+            const oTop = parseInt(other.style.top) || 0, oLeft = parseInt(other.style.left) || 0;
+
+            if (Math.abs(newHeight - oHeight) < SNAP_DIST) {
+              if (resizeDir.includes('t')) newTop = newTop + newHeight - oHeight;
+              newHeight = oHeight;
+              guideH.style.top = (oTop + oHeight) + 'px';
+              guideH.style.display = 'block';
+            }
+            if (Math.abs(newWidth - oWidth) < SNAP_DIST) {
+              if (resizeDir.includes('l')) newLeft = newLeft + newWidth - oWidth;
+              newWidth = oWidth;
+              guideV.style.left = (oLeft + oWidth) + 'px';
+              guideV.style.display = 'block';
+            }
+          });
+
+          el.style.left = newLeft + 'px';
+          el.style.top = newTop + 'px';
+          el.style.width = newWidth + 'px';
+          el.style.height = newHeight + 'px';
+
+        } else if (isRotating) {
+          const rect = el.getBoundingClientRect();
+          const currentAngle = Math.atan2(e.clientY - (rect.top + rect.height / 2), e.clientX - (rect.left + rect.width / 2));
+          let angle = (currentAngle - startAngle) * (180 / Math.PI);
+          let finalAngle = initialRotate + angle;
+
+          const mod = Math.abs(finalAngle % 90);
+          if (mod <= SNAP_DIST || mod >= 90 - SNAP_DIST) {
+            finalAngle = Math.round(finalAngle / 90) * 90;
+          }
+
+          el.style.transform = `rotate(${finalAngle}deg)`;
+          labDatabase[el.id].rotate = finalAngle; 
+        }
+      });
+
+      document.addEventListener('mouseup', function() {
+        if (!hasMoved && (isDragging || isResizing || isRotating)) {
+          // 아이콘만 클릭 시 모달창 열기
+          if (el.classList.contains('icon-box')) openDetailModal();
+        }
+        if (hasMoved && (isDragging || isResizing || isRotating)) scheduleAutoSave();
+        isDragging = isResizing = isRotating = false; resizeDir = null;
+        document.getElementById('guideH').style.display = 'none';
+        document.getElementById('guideV').style.display = 'none';
+      });
+    }
+
+    // 4. 모달창 데이터 제어
+    function openDetailModal() {
+      if (!selectedEl) return;
+      const dbData = labDatabase[selectedEl.id];
+      const defaultTitle = selectedEl.classList.contains('shape-box') ? selectedEl.querySelector('.editable-text').innerText : "서랍장 아이콘";
+      const titleText = dbData.detailTitle || defaultTitle;
+      document.getElementById('modalTitle').innerText = titleText;
+      
+      document.getElementById('managerInput').value = dbData.manager || "";
+      document.getElementById('imgSizeSlider').value = dbData.imageSize || "100";
+      
+      if (dbData.imageUrl && dbData.imageUrl.startsWith('data:image')) {
+        document.getElementById('imgUrlInput').value = "[클립보드에서 붙여넣은 이미지]";
+      } else {
+        document.getElementById('imgUrlInput').value = dbData.imageUrl || "";
+      }
+      
+      refreshPreviewImage();
+      renderZoneLabels(); 
+      renderInventoryTable(); 
+      document.getElementById('detailModal').style.display = "block";
+    }
+
+    function closeModal() { document.getElementById('detailModal').style.display = "none"; }
+
+    function refreshPreviewImage() {
+      const imgEl = document.getElementById('previewImage');
+      const dbUrl = labDatabase[selectedEl.id].imageUrl;
+      
+      if(dbUrl && dbUrl.trim() !== "") { imgEl.src = dbUrl; imgEl.style.display = "block"; } 
+      else { imgEl.style.display = "none"; }
+      updateImageSize();
+    }
+
+    function updatePreviewFromUrl() {
+      const urlInput = document.getElementById('imgUrlInput').value;
+      if (urlInput !== "[클립보드에서 붙여넣은 이미지]") {
+        labDatabase[selectedEl.id].imageUrl = urlInput;
+        refreshPreviewImage();
+      }
+      updateDetailData();
+    }
+
+    function updateImageSize() {
+      const size = document.getElementById('imgSizeSlider').value;
+      document.getElementById('imageWrapper').style.width = size + "%";
+      document.getElementById('imgSizeLabel').innerText = size + "%";
+      updateDetailData();
+    }
+
+    function updateDetailData() {
+      if(!selectedEl) return;
+      labDatabase[selectedEl.id].manager = document.getElementById('managerInput').value;
+      labDatabase[selectedEl.id].imageSize = document.getElementById('imgSizeSlider').value;
+      labDatabase[selectedEl.id].detailTitle = document.getElementById('modalTitle').innerText;
+      scheduleAutoSave();
+    }
+
+    // 클립보드 붙여넣기 (Ctrl+V)
+    document.addEventListener('paste', function(e) {
+      if (document.getElementById('detailModal').style.display === "block") {
+        const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+        for (let index in items) {
+          const item = items[index];
+          if (item.kind === 'file' && item.type.includes('image/')) {
+            const blob = item.getAsFile();
+            const reader = new FileReader();
+            reader.onload = function(event) {
+              const base64DataUrl = event.target.result;
+              if(selectedEl) labDatabase[selectedEl.id].imageUrl = base64DataUrl;
+              document.getElementById('imgUrlInput').value = "[클립보드에서 붙여넣은 이미지]";
+              refreshPreviewImage();
+              scheduleAutoSave();
+            };
+            reader.readAsDataURL(blob);
+          }
+        }
+      }
+    });
+
+    /* --------------------------------------------------------
+       사진 위 구역(A1, A2 등) 라벨 기능
+       -------------------------------------------------------- */
+    let selectedLabel = null;
+
+    function addZoneLabel() {
+      if (!selectedEl) return;
+      const dbData = labDatabase[selectedEl.id];
+      const labelId = 'label_' + Date.now();
+      
+      dbData.zoneLabels.push({ id: labelId, text: "A1", left: "10%", top: "10%" });
+      renderZoneLabels();
+      scheduleAutoSave();
+    }
+
+    function renderZoneLabels() {
+      const wrapper = document.getElementById('imageWrapper');
+      wrapper.querySelectorAll('.zone-label').forEach(e => e.remove());
+      
+      const labels = labDatabase[selectedEl.id].zoneLabels || [];
+      
+      labels.forEach(lblData => {
+        const el = document.createElement('div');
+        el.className = 'zone-label';
+        el.id = lblData.id;
+        el.style.left = lblData.left;
+        el.style.top = lblData.top;
+
+        const handle = document.createElement('div');
+        handle.className = 'label-drag-handle';
+        el.appendChild(handle);
+
+        const textDiv = document.createElement('div');
+        textDiv.className = 'label-text';
+        textDiv.contentEditable = true;
+        textDiv.innerText = lblData.text;
+        
+        textDiv.addEventListener('input', () => { lblData.text = textDiv.innerText; scheduleAutoSave(); });
+        el.appendChild(textDiv);
+
+        el.addEventListener('mousedown', (e) => {
+          e.stopPropagation();
+          if (selectedLabel) selectedLabel.classList.remove('selected-label');
+          selectedLabel = el;
+          selectedLabel.classList.add('selected-label');
+        });
+
+        wrapper.appendChild(el);
+        makeLabelDraggable(el, handle, lblData); 
+      });
+    }
+
+    function makeLabelDraggable(el, handle, dbRef) {
+      let isDragging = false;
+      let startX, startY, startLeftPct, startTopPct;
+
+      handle.addEventListener('mousedown', function(e) {
+        isDragging = true;
+        startX = e.clientX; startY = e.clientY;
+        startLeftPct = parseFloat(el.style.left) || 0;
+        startTopPct = parseFloat(el.style.top) || 0;
+        e.stopPropagation();
+      });
+
+      document.addEventListener('mousemove', function(e) {
+        if (!isDragging) return;
+        const wrapperRect = document.getElementById('imageWrapper').getBoundingClientRect();
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        
+        const dxPct = (dx / wrapperRect.width) * 100;
+        const dyPct = (dy / wrapperRect.height) * 100;
+
+        el.style.left = (startLeftPct + dxPct) + '%';
+        el.style.top = (startTopPct + dyPct) + '%';
+      });
+
+      document.addEventListener('mouseup', function() {
+        if (isDragging) { isDragging = false; dbRef.left = el.style.left; dbRef.top = el.style.top; scheduleAutoSave(); }
+      });
+    }
+
+    function deleteZoneLabel() {
+      if (!selectedLabel) return alert("삭제할 라벨을 사진에서 클릭해주세요.");
+      const dbData = labDatabase[selectedEl.id];
+      dbData.zoneLabels = dbData.zoneLabels.filter(l => l.id !== selectedLabel.id);
+      selectedLabel.remove();
+      selectedLabel = null;
+      scheduleAutoSave();
+    }
+
+    /* --------------------------------------------------------
+       표 렌더링 시 "셀 병합(Rowspan)" 적용
+       -------------------------------------------------------- */
+
+    function compareAreaCode(areaA, areaB) {
+      const a = String(areaA || '').trim();
+      const b = String(areaB || '').trim();
+
+      const matchA = a.match(/^([A-Za-z가-힣]+)\s*(\d+)$/);
+      const matchB = b.match(/^([A-Za-z가-힣]+)\s*(\d+)$/);
+
+      if (matchA && matchB) {
+        const prefixCompare = matchA[1].localeCompare(matchB[1], 'ko');
+        if (prefixCompare !== 0) return prefixCompare;
+        return parseInt(matchA[2], 10) - parseInt(matchB[2], 10);
+      }
+
+      return a.localeCompare(b, 'ko', { numeric: true });
+    }
+
+    function renderInventoryTable() {
+      const tbody = document.getElementById('tableBody');
+      tbody.innerHTML = '';
+      const items = labDatabase[selectedEl.id].inventory;
+
+      if (items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5">등록된 물품이 없습니다.</td></tr>';
+        return;
+      }
+
+      // 구역 기준으로 자연 정렬: D1, D2, D3 ... D10 순서
+      items.sort((a, b) => {
+        const areaCompare = compareAreaCode(a.area, b.area);
+        if (areaCompare !== 0) return areaCompare;
+
+        const categoryCompare = String(a.category || '').localeCompare(String(b.category || ''), 'ko', { numeric: true });
+        if (categoryCompare !== 0) return categoryCompare;
+
+        return String(a.name || '').localeCompare(String(b.name || ''), 'ko', { numeric: true });
+      });
+
+      let html = '';
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+
+        // [변경] 구역(area)만 같으면 하나로 합치기
+        let drawArea = false;
+        let areaRowspanCount = 1;
+
+        if (i === 0 || items[i - 1].area !== item.area) {
+          drawArea = true;
+          for (let j = i + 1; j < items.length; j++) {
+            if (items[j].area === item.area) areaRowspanCount++;
+            else break;
+          }
+        }
+
+        html += `<tr>`;
+
+        // 구역 셀만 rowspan 적용
+        if (drawArea) {
+          html += `<td rowspan="${areaRowspanCount}" class="editable-cell" contenteditable="true"
+                    oninput="updateInventoryAreaGroup(${i}, this.innerText)"
+                    onblur="renderInventoryTable()">${escapeHtml(item.area)}</td>`;
+        }
+
+        // 분류/물품명/수량은 각 행에서 바로 수정
+        html += `<td class="editable-cell" contenteditable="true" oninput="updateInventoryField(${i}, 'category', this.innerText)">${escapeHtml(item.category)}</td>`;
+        html += `<td class="editable-cell" contenteditable="true" oninput="updateInventoryField(${i}, 'name', this.innerText)">${escapeHtml(item.name)}</td>`;
+        html += `<td class="editable-cell" contenteditable="true" oninput="updateInventoryField(${i}, 'qty', this.innerText)">${escapeHtml(item.qty)}</td>`;
+        html += `<td><button class="del-item-btn" onclick="deleteInventoryItem(${i})">삭제</button></td>`;
+        html += `</tr>`;
+      }
+      tbody.innerHTML = html;
+    }
+
+    function addInventoryItem() {
+      const area = document.getElementById('itemArea').value || '-';
+      const category = document.getElementById('itemCategory').value || '-';
+      const name = document.getElementById('itemName').value;
+      const qty = document.getElementById('itemQty').value || '-';
+      
+      if(!name) return alert("물품명은 필수 입력입니다.");
+
+      labDatabase[selectedEl.id].inventory.push({ area: area, category: category, name: name, qty: qty });
+      
+      document.getElementById('itemArea').value = ''; 
+      document.getElementById('itemCategory').value = '';
+      document.getElementById('itemName').value = ''; 
+      document.getElementById('itemQty').value = '';
+      
+      renderInventoryTable();
+      scheduleAutoSave();
+    }
+
+    function updateInventoryField(index, field, value) {
+      if (!selectedEl || !labDatabase[selectedEl.id] || !labDatabase[selectedEl.id].inventory[index]) return;
+      labDatabase[selectedEl.id].inventory[index][field] = value;
+      scheduleAutoSave();
+    }
+
+    function updateInventoryAreaGroup(index, value) {
+      if (!selectedEl || !labDatabase[selectedEl.id] || !labDatabase[selectedEl.id].inventory[index]) return;
+      const items = labDatabase[selectedEl.id].inventory;
+      const baseArea = items[index].area;
+
+      // 같은 구역으로 묶여 있던 항목들의 구역명을 같이 수정
+      items.forEach(it => {
+        if (it.area === baseArea) it.area = value;
+      });
+      scheduleAutoSave();
+    }
+
+    function deleteInventoryItem(index) { labDatabase[selectedEl.id].inventory.splice(index, 1); renderInventoryTable(); scheduleAutoSave(); }
+
+    // 6. Google 스프레드시트 저장/불러오기
+    function buildMapData() {
+      const items = document.querySelectorAll('.draggable-item');
+      const finalData = {
+        itemCount,
+        mapSize: { w: mapArea.clientWidth, h: mapArea.clientHeight },
+        items: []
+      };
+
+      items.forEach(el => {
+        const dbData = labDatabase[el.id] || {};
+        const textEl = el.querySelector('.editable-text');
+        const name = dbData.type === 'shape' && textEl
+          ? textEl.innerText
+          : (dbData.type === 'door' ? 'Door' : (dbData.type === 'wall' ? 'Wall' : 'Icon'));
+
+        finalData.items.push({
+          id: el.id,
+          type: dbData.type,
+          name,
+          left: el.style.left,
+          top: el.style.top,
+          width: el.style.width || el.offsetWidth + 'px',
+          height: el.style.height || el.offsetHeight + 'px',
+          color: (el.classList.contains('shape-box') || el.classList.contains('wall-box'))
+            ? window.getComputedStyle(el).backgroundColor
+            : null,
+          textColor: textEl ? window.getComputedStyle(textEl).color : null,
+          manager: dbData.manager || "",
+          imageUrl: dbData.imageUrl || "",
+          imageSize: dbData.imageSize || "100",
+          zoneLabels: dbData.zoneLabels || [],
+          inventory: dbData.inventory || [],
+          rotate: dbData.rotate || 0,
+          detailTitle: dbData.detailTitle || ""
+        });
+      });
+
+      return finalData;
+    }
+
+    function scheduleAutoSave() {
+      clearTimeout(autoSaveTimer);
+      autoSaveTimer = setTimeout(autoSaveMapData, 600);
+    }
+
+    function autoSaveMapData() {
+      if (typeof google === 'undefined' || !google.script || !google.script.run) return;
+      const finalData = buildMapData();
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (!result || !result.success) console.log("자동저장 실패", result);
+        })
+        .withFailureHandler(function(err) {
+          console.log("자동저장 오류", err);
+        })
+        .saveData(finalData);
+    }
+
+    function saveMapData() {
+      const finalData = buildMapData();
+
+      if (typeof google === 'undefined' || !google.script || !google.script.run) {
+        showSearchModal("Apps Script 웹앱에서 실행해야 저장됩니다.");
+        return;
+      }
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result && result.success) {
+            showSearchModal("저장되었습니다.");
+          } else {
+            showSearchModal("저장 실패");
+          }
+        })
+        .withFailureHandler(function(err) {
+          showSearchModal("저장 실패");
+        })
+        .saveData(finalData);
+    }
+
+    function loadMapData() {
+      if (typeof google === 'undefined' || !google.script || !google.script.run) {
+        console.log("Apps Script 웹앱이 아니므로 자동 불러오기를 건너뜁니다.");
+        return;
+      }
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (!result || !result.success) {
+            console.log((result && result.message) || "저장된 데이터가 없습니다.");
+            return;
+          }
+          restoreMapData(result.data);
+        })
+        .withFailureHandler(function(err) {
+          alert("불러오기 중 오류가 발생했습니다: " + err.message);
+        })
+        .loadData();
+    }
+
+    function restoreMapData(data) {
+      if (!data) return;
+
+      document.querySelectorAll('.draggable-item').forEach(el => el.remove());
+      labDatabase = {};
+      selectedEl = null;
+      itemCount = data.itemCount || 0;
+
+      if (data.mapSize) {
+        mapArea.style.width = data.mapSize.w + 'px';
+        mapArea.style.height = data.mapSize.h + 'px';
+        mapWInput.value = data.mapSize.w;
+        mapHInput.value = data.mapSize.h;
+      }
+
+      (data.items || []).forEach(item => {
+        const newEl = document.createElement('div');
+        newEl.id = item.id;
+
+        if (item.type === 'shape') newEl.className = 'draggable-item shape-box';
+        else if (item.type === 'icon') newEl.className = 'draggable-item icon-box';
+        else if (item.type === 'door') newEl.className = 'draggable-item door-box';
+        else if (item.type === 'wall') newEl.className = 'draggable-item wall-box';
+        else return;
+
+        newEl.style.left = item.left || '100px';
+        newEl.style.top = item.top || '100px';
+        if (item.width && item.width !== 'auto') newEl.style.width = item.width;
+        if (item.height && item.height !== 'auto') newEl.style.height = item.height;
+        newEl.style.transform = `rotate(${item.rotate || 0}deg)`;
+
+        labDatabase[item.id] = {
+          type: item.type,
+          manager: item.manager || "",
+          imageUrl: item.imageUrl || "",
+          imageSize: item.imageSize || "100",
+          inventory: item.inventory || [],
+          zoneLabels: item.zoneLabels || [],
+          rotate: item.rotate || 0,
+          detailTitle: item.detailTitle || ""
+        };
+
+        if (item.type === 'shape') {
+          newEl.style.backgroundColor = item.color || '#b3b3b3';
+          const textColor = item.textColor || '#000000';
+          newEl.innerHTML = `<span class="editable-text" contenteditable="true" style="color:${textColor};">${escapeHtml(item.name || '')}</span>
+                             ${resizeHandlesHTML()}
+                             <div class="handle rotate-handle"></div>`;
+        } else if (item.type === 'wall') {
+          newEl.style.backgroundColor = item.color || '#555555';
+          newEl.innerHTML = `${resizeHandlesHTML()}
+                             <div class="handle rotate-handle"></div>`;
+        } else if (item.type === 'icon') {
+          newEl.innerHTML = `<div class="triangle-up"></div><div class="handle rotate-handle"></div>`;
+        } else if (item.type === 'door') {
+          newEl.innerHTML = `<div class="door-arc"></div><div class="door-frame"></div><div class="door-bottom"></div>
+                             ${resizeHandlesHTML()}<div class="handle rotate-handle"></div>`;
+        }
+
+        mapArea.appendChild(newEl);
+        makeTransformable(newEl);
+      });
+    }
+
+    function clearSavedMapData() {
+      if (!confirm("저장된 도면 데이터를 삭제하시겠습니까? 현재 화면의 도형도 모두 지워집니다.")) return;
+
+      if (typeof google === 'undefined' || !google.script || !google.script.run) {
+        alert("Apps Script 웹앱에서 실행해야 구글 스프레드시트 데이터를 초기화할 수 있습니다.");
+        return;
+      }
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result && result.success) {
+            document.querySelectorAll('.draggable-item').forEach(el => el.remove());
+            labDatabase = {};
+            selectedEl = null;
+            itemCount = 0;
+            alert("저장 데이터가 초기화되었습니다.");
+          } else {
+            alert("초기화 실패: " + ((result && result.message) || "알 수 없는 오류"));
+          }
+        })
+        .withFailureHandler(function(err) {
+          alert("초기화 중 오류가 발생했습니다: " + err.message);
+        })
+        .clearData();
+    }
+
+    function updateModalTitleText() {
+      if (!selectedEl) return;
+      labDatabase[selectedEl.id].detailTitle = document.getElementById('modalTitle').innerText;
+      scheduleAutoSave();
+    }
+
+
+    function attachTextAutoSave(el) {
+      const textEl = el.querySelector('.editable-text');
+      if (!textEl || textEl.dataset.autosaveAttached === '1') return;
+      textEl.dataset.autosaveAttached = '1';
+      textEl.addEventListener('input', function() {
+        scheduleAutoSave();
+      });
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function rgbToHex(rgb) {
+      if (!rgb) return '#000000';
+      const rgbArr = rgb.match(/\d+/g);
+      if (!rgbArr || rgbArr.length < 3) return '#000000';
+
+      const r = parseInt(rgbArr[0]).toString(16).padStart(2, '0');
+      const g = parseInt(rgbArr[1]).toString(16).padStart(2, '0');
+      const b = parseInt(rgbArr[2]).toString(16).padStart(2, '0');
+      return `#${r}${g}${b}`;
+    }
+
+
+    /* --------------------------------------------------------
+       전체 물품 검색 기능
+       - 구역, 분류, 물품명, 수량 검색 가능
+       - 검색 결과가 있으면 해당 장비를 선택하고 강조 표시
+       - 아이콘 장비면 상세 모달창까지 자동으로 열림
+    -------------------------------------------------------- */
+    function handleSearchKey(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        searchInventoryItem();
+      }
+    }
+
+    function getItemDisplayName(el, id) {
+      const db = labDatabase[id] || {};
+      const textEl = el.querySelector('.editable-text');
+
+      if (db.detailTitle && db.detailTitle.trim()) return db.detailTitle.trim();
+      if (textEl && textEl.innerText.trim()) return textEl.innerText.trim();
+
+      if (db.type === 'shape') return '장비';
+      if (db.type === 'icon') return '아이콘';
+      if (db.type === 'wall') return '벽';
+      if (db.type === 'door') return '문';
+      return id;
+    }
+
+    function searchInventoryItem() {
+      const searchInput = document.getElementById('searchInput');
+      const keyword = searchInput.value.trim().toLowerCase();
+
+      if (!keyword) {
+        showSearchModal('검색어를 입력해주세요.');
+        searchInput.focus();
+        return;
+      }
+
+      const results = [];
+
+      Object.keys(labDatabase).forEach(id => {
+        const db = labDatabase[id] || {};
+        const inventory = db.inventory || [];
+
+        inventory.forEach(item => {
+          const area = String(item.area || '').toLowerCase();
+          const category = String(item.category || '').toLowerCase();
+          const name = String(item.name || '').toLowerCase();
+          const qty = String(item.qty || '').toLowerCase();
+
+          if (
+            area.includes(keyword) ||
+            category.includes(keyword) ||
+            name.includes(keyword) ||
+            qty.includes(keyword)
+          ) {
+            results.push({ id, item });
+          }
+        });
+      });
+
+      if (results.length === 0) {
+        showSearchModal('검색 결과가 없습니다.');
+        return;
+      }
+
+      const first = results[0];
+      const el = document.getElementById(first.id);
+
+      if (!el) {
+        showSearchModal('데이터는 있지만 도면에서 해당 장비를 찾을 수 없습니다.');
+        return;
+      }
+
+      selectItem(el);
+
+      el.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+        inline: 'center'
+      });
+
+      document.querySelectorAll('.search-highlight').forEach(item => {
+        item.classList.remove('search-highlight');
+      });
+
+      el.classList.add('search-highlight');
+      setTimeout(() => {
+        el.classList.remove('search-highlight');
+      }, 2500);
+
+      // 검색된 장비가 아이콘이면 상세정보 창도 자동으로 열어줌
+      if (el.classList.contains('icon-box')) {
+        openDetailModal();
+      }
+
+      const item = first.item;
+      const itemName = getItemDisplayName(el, first.id);
+      const extraCount = results.length - 1;
+      const extraText = extraCount > 0 ? `\n외 ${extraCount}개 결과가 더 있습니다. 첫 번째 결과를 표시합니다.` : '';
+
+      showSearchModal(
+        `검색 결과를 찾았습니다.\n\n` +
+        `위치 장비: ${itemName}\n` +
+        `구역: ${item.area || '-'}\n` +
+        `분류: ${item.category || '-'}\n` +
+        `물품명: ${item.name || '-'}\n` +
+        `수량: ${item.qty || '-'}${extraText}`
+      );
+    }
+
+
+    // 선택된 장비/아이콘/문/벽을 키보드 방향키로 미세 이동
+    // 방향키: 1px 이동, Shift + 방향키: 10px 이동
+    document.addEventListener('keydown', function(e) {
+      if (!selectedEl) return;
+
+      // 입력창, 표 셀, 장비 이름 수정 중에는 방향키 이동 금지
+      const active = document.activeElement;
+      const tag = active ? active.tagName : '';
+      const isEditing = active && (
+        active.isContentEditable ||
+        tag === 'INPUT' ||
+        tag === 'TEXTAREA' ||
+        tag === 'SELECT'
+      );
+      if (isEditing) return;
+
+      const step = e.shiftKey ? 10 : 1;
+      let left = parseInt(selectedEl.style.left) || 0;
+      let top = parseInt(selectedEl.style.top) || 0;
+
+      if (e.key === 'ArrowLeft') left -= step;
+      else if (e.key === 'ArrowRight') left += step;
+      else if (e.key === 'ArrowUp') top -= step;
+      else if (e.key === 'ArrowDown') top += step;
+      else return;
+
+      e.preventDefault();
+
+      const mapW = mapArea.clientWidth;
+      const mapH = mapArea.clientHeight;
+      left = Math.max(0, Math.min(left, mapW - selectedEl.offsetWidth));
+      top = Math.max(0, Math.min(top, mapH - selectedEl.offsetHeight));
+
+      selectedEl.style.left = left + 'px';
+      selectedEl.style.top = top + 'px';
+      scheduleAutoSave();
+    });
+
+    window.addEventListener('load', loadMapData);
+
+  </script>
+</body>
+</html>
